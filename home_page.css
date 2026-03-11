@@ -5,6 +5,42 @@ box-sizing:border-box;
 font-family:Arial;
 }
 
+@media (max-width:768px){
+
+  nav{
+  flex-direction:column;
+  }
+  
+  .hero{
+  flex-direction:column;
+  text-align:center;
+  }
+  
+  .features{
+  flex-direction:column;
+  }
+  
+  .services{
+  flex-direction:column;
+  }
+  
+  .subject-container{
+  grid-template-columns:1fr;
+  }
+  
+  .footer-container{
+  flex-direction:column;
+  text-align:center;
+  }
+
+}
+
+img{
+max-width:100%;
+height:auto;
+}
+
+
 body{
 font-family:'Poppins', sans-serif;
 }
@@ -553,4 +589,5 @@ margin:40px 0 15px 0;
 .copyright{
 text-align:center;
 font-size:14px;
+
 }

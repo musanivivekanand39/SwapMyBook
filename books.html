@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>SwapMyBook - Books</title>
+<link href="home_page.css" rel="stylesheet" type="text/css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Arial;
+margin:0;
+background:#f5f5f5;
+}
+
+/* NAVBAR */
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 60px;
+background:linear-gradient(90deg,#5a67d8,#4299e1);
+}
+
+.logo{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.logo img{
+width:40px;
+}
+
+.logotext{
+font-family:"Ink Free";
+font-size:28px;
+color:white;
+}
+
+/* SEARCH BAR */
+
+.search{
+text-align:center;
+margin:30px;
+}
+
+.search input{
+padding:10px;
+width:300px;
+border-radius:5px;
+border:1px solid #ccc;
+}
+
+/* BOOK GRID */
+
+.book-container{
+display:flex;
+flex-wrap:wrap;
+justify-content:flex-start;   /* center the cards */
+gap:40px;                 /* space between cards */
+padding:40px 80px;
+}
+
+.book-card{
+width:20%;
+height:400px;
+background:white;
+border-radius:10px;
+border:1px solid black;
+padding:40px 20px 20px 20px;
+box-shadow:0 10px 25px rgba(0,0,0,0.1);
+display:flex;
+flex-direction:column;
+
+}
+
+.book-card img{
+width:100%;
+height:160px;
+object-fit:cover;
+border-radius:6px;
+margin-bottom:5px;
+}
+
+.book-card button{
+margin-top:8px;
+}
+
+.book{
+background:white;
+padding:20px;
+border-radius:8px;
+box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
+
+.book img{
+width:100%;
+height:160px;
+object-fit:cover;
+}
+
+.book h3{
+margin:10px 0;
+}
+
+.owner{
+font-size:14px;
+color:#555;
+}
+
+.swap-btn{
+margin-top:10px;
+padding:10px 15px;
+background:linear-gradient(90deg,#6b21a8,#4c1d95);
+border:none;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+/* POPUP */
+
+.popup{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.6);
+justify-content:center;
+align-items:center;
+}
+
+.popup-content{
+background:white;
+padding:25px;
+border-radius:8px;
+width:300px;
+text-align:center;
+}
+
+.popup-content input{
+width:100%;
+padding:8px;
+margin:10px 0;
+}
+
+.close{
+cursor:pointer;
+float:right;
+font-size:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+<div class="logo">
+<img src="logo.png" alt="BookSwap Logo">
+<h2 class="logotext">SwapMyBook</h2>
+</div>
+
+<nav>
+<ul>
+<li><a href="#">HOME</a></li>
+<li><a href="#aboutus">ABOUT</a></li>
+<li><a href="#">SERVICE</a></li>
+<li><a href="#">CONTACT</a></li>
+</ul>
+</nav>
+
+<button class="contact-btn">CONTACT US</button>
+</header>
+
+<div class="search">
+<input type="text" id="search" placeholder="Search books..." onkeyup="searchBook()">
+</div>
+
+<div class="book-container" id="bookContainer"></div>
+
+
+<!-- POPUP -->
+
+<div class="popup" id="popup">
+
+<div class="popup-content">
+
+<span class="close" onclick="closePopup()">×</span>
+
+<h3>Swap Request</h3>
+
+<input type="text" placeholder="Your Name">
+<input type="email" placeholder="Your Email">
+<input type="text" id="bookName">
+
+<button onclick="sendRequest()">Send Request</button>
+
+</div>
+
+</div>
+
+<script>
+
+
+
+const params = new URLSearchParams(window.location.search);
+const subject = params.get("subject");
+
+let books = JSON.parse(localStorage.getItem("books")) || [];
+
+let container = document.getElementById("bookContainer");
+
+container.innerHTML = "";
+
+books.forEach((book, index) => {
+
+if(book.subject === subject){
+
+container.innerHTML += `
+<div class="book-card">
+
+<img src="${book.image}">
+
+<h3>${book.title}</h3>
+
+<p>Author: ${book.author}</p>
+
+<p>Contact: ${book.contact}</p>
+
+<button class="swap-btn" onclick="requestSwap('${book.contact}','${book.title}')">
+Request Swap
+</button>
+
+<button onclick="deleteBook(${index})">Delete</button>
+
+</div>
+`;
+
+}
+
+});
+
+
+
+function deleteBook(index){
+
+let password = prompt("Enter developer password to delete this book:");
+
+if(password !== "swapadmin123"){
+alert("Wrong password! Only developer can delete.");
+return;
+}
+
+let books = JSON.parse(localStorage.getItem("books")) || [];
+
+books.splice(index,1);
+
+localStorage.setItem("books", JSON.stringify(books));
+
+alert("Book deleted successfully.");
+
+location.reload();
+
+}
+
+
+function requestSwap(contact, title){
+
+let message = "Hello, I would like to swap the book: " + title + " from SwapMyBook.";
+
+let option = confirm("Press OK for WhatsApp or Cancel for SMS");
+
+if(option){
+
+let whatsappURL = "https://wa.me/" + contact + "?text=" + encodeURIComponent(message);
+window.open(whatsappURL, "_blank");
+
+}
+else{
+
+let smsURL = "sms:" + contact + "?body=" + encodeURIComponent(message);
+window.location.href = smsURL;
+
+}
+
+}
+</script>
+
+</body>
+</html>

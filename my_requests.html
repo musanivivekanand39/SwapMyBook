@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My Swap Requests</title>
+<link rel="stylesheet" href="my_requests.css">
+<meta charset="UTF-8">
+</head>
+<body>
+
+<div class="page-shell">
+
+<div class="page-topbar">
+<a href="index.html" class="back-link">Back to Home</a>
+</div>
+
+<div class="page-hero">
+<p class="page-kicker">Swap Dashboard</p>
+<h1 class="page-title">My Swap Requests</h1>
+<p class="page-subtitle">Track the books you requested and manage the requests you received in one place.</p>
+</div>
+
+<div class="requests-container">
+
+<div class="request-section" id="sentSection">
+<h2>Requests I Sent</h2>
+<div id="sentRequests"></div>
+</div>
+
+<div class="request-section" id="receivedSection">
+<h2>Requests I Received</h2>
+<div id="receivedRequests"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+function renderSentRequests(requests){
+let container = document.getElementById("sentRequests");
+
+if(!requests.length){
+container.innerHTML = "<div class='empty-state'>No requests sent yet.</div>";
+return;
+}
+
+container.innerHTML = requests.map(function(request){
+let acceptedDetails = "";
+
+if(request.status === "accepted"){
+acceptedDetails = `
+<p><strong>Owner:</strong> ${request.owner_name || "Unknown"}</p>
+<p><strong>Owner Contact:</strong> ${request.contact || "Not available"}</p>
+`;
+}
+
+return `
+<div class="request-card">
+<p><strong>Request ID:</strong> ${request.request_id}</p>
+<p><strong>Book:</strong> ${request.title || "Unknown Book"}</p>
+<p><strong>Book ID:</strong> ${request.book_id}</p>
+<p class="status ${request.status}">${request.status}</p>
+${acceptedDetails}
+</div>
+`;
+}).join("");
+}
+
+function renderReceivedRequests(requests){
+let container = document.getElementById("receivedRequests");
+
+if(!requests.length){
+container.innerHTML = "<div class='empty-state'>No requests received yet.</div>";
+return;
+}
+
+container.innerHTML = requests.map(function(request){
+let actionButtons = "";
+
+if(request.status === "pending"){
+actionButtons = `
+<div class="actions">
+<a class="accept" href="update_request.php?id=${request.request_id}&status=accepted">Accept</a>
+<a class="reject" href="update_request.php?id=${request.request_id}&status=rejected">Reject</a>
+</div>
+`;
+}
+
+return `
+<div class="request-card">
+<p><strong>Requested By:</strong> ${request.requester_name}</p>
+<p><strong>Book:</strong> ${request.title}</p>
+<p class="status ${request.status}">${request.status}</p>
+${actionButtons}
+</div>
+`;
+}).join("");
+}
+
+fetch("my_requests_data.php")
+.then(async function(res){
+let data = await res.json();
+
+if(!res.ok || !data.success){
+window.location.replace("login_page.html");
+return;
+}
+
+renderSentRequests(data.sentRequests || []);
+renderReceivedRequests(data.receivedRequests || []);
+})
+.catch(function(){
+window.location.replace("login_page.html");
+});
+
+</script>
+
+</body>
+</html>

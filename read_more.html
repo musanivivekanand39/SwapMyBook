@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Details - SwapMyBook</title>
+<link rel="stylesheet" href="read_more.css">
+</head>
+<body>
+
+<header class="topbar">
+<a class="back-link" href="index.html">Back to Home</a>
+<a class="explore-link" href="explore_more.html">Explore More</a>
+</header>
+
+<main class="feature-shell">
+<p class="kicker">Feature Details</p>
+<h1 id="featureTitle">Easy Listing</h1>
+<p id="featureLead" class="lead"></p>
+
+<section class="details-box">
+<h2>Why This Helps Students</h2>
+<p id="featureBody"></p>
+</section>
+
+<section class="action-row">
+<a id="featureAction" href="index.html#subjects">Go To Subjects</a>
+<a href="my_requests.html">Open My Requests</a>
+</section>
+</main>
+
+<script>
+const featureMap = {
+"easy-listing": {
+title: "Easy Listing",
+lead: "Students can quickly post textbook details, contact information, and images in minutes.",
+body: "This keeps quality books in circulation and helps juniors find trusted books from seniors. A simple listing flow increases successful exchanges and reduces book wastage each semester.",
+actionLabel: "Add A Book",
+actionHref: "index.html"
+},
+"smart-search": {
+title: "Smart Search",
+lead: "Books are grouped by academic stream so students can focus on relevant materials fast.",
+body: "Instead of scanning random posts, students can directly open their subject category and compare available books. This improves discovery speed and helps users connect with the right owner quickly.",
+actionLabel: "Browse Subjects",
+actionHref: "index.html#subjects"
+},
+"direct-contact": {
+title: "Direct Contact",
+lead: "Requesters can contact book owners directly after discovering a suitable book.",
+body: "Clear communication improves exchange success and avoids confusion about pickup details. Students can coordinate quickly and securely using the contact information shared by the owner.",
+actionLabel: "View Books",
+actionHref: "books.html?subject=engineering"
+},
+"cost-savings": {
+title: "Cost Savings",
+lead: "Peer-to-peer exchange lowers textbook spending for every semester.",
+body: "Students save money by reusing existing books instead of buying new copies at full price. The platform makes affordable study resources available to more learners.",
+actionLabel: "Start Swapping",
+actionHref: "index.html#subjects"
+}
+};
+
+const params = new URLSearchParams(window.location.search);
+const key = params.get("feature") || "easy-listing";
+const config = featureMap[key] || featureMap["easy-listing"];
+
+document.getElementById("featureTitle").innerText = config.title;
+document.getElementById("featureLead").innerText = config.lead;
+document.getElementById("featureBody").innerText = config.body;
+
+const actionLink = document.getElementById("featureAction");
+actionLink.innerText = config.actionLabel;
+actionLink.href = config.actionHref;
+</script>
+
+</body>
+</html>

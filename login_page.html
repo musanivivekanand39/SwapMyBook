@@ -1,0 +1,55 @@
+<html>
+<head>
+	<title>SwapMyBook</title>
+	<link href="login_page.css" type="text/css" rel="stylesheet"/>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+	<nav>
+		<div class="logo">
+			<img src="images/logo.png" alt="BookSwap Logo">
+			<h2 class="logotext">SwapMyBook</h2>
+		</div>
+
+		<ul>
+		<li><a href="index.html">Home</a></li>
+		<li><a href="index.html#subjects">Browse Books</a></li>
+		<li><a href="login_page.html">Login</a></li>
+		<li><a href="signup_page.html">Register</a></li>
+		</ul>
+	</nav>
+	<div class="main">
+		<div class="container">
+			<div class="title">Login</div>
+			<form action="login.php" method="POST">
+
+			<label>Username</label>
+			<input type="text" name="username" placeholder="Enter Username">
+
+			<label>Password</label>
+			<input type="password" name="password" placeholder="Enter Password">
+
+			<button type="submit">Login</button>
+
+			</form>
+			<div class="signup">
+			Don't have an account? <a href="signup_page.html">Sign Up</a>
+			</div>
+		</div>
+	</div>
+	<script>
+		function clearForwardHistory(){
+		if(history.state !== "login-page"){
+		history.replaceState("login-page", "", window.location.href);
+		}
+
+		history.pushState("login-page-active", "", window.location.href);
+		}
+
+		document.addEventListener("DOMContentLoaded", clearForwardHistory);
+		window.addEventListener("pageshow", clearForwardHistory);
+	</script>
+</body>
+</html>

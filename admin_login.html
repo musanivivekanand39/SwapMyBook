@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SwapMyBook - Admin Login</title>
+<link href="admin_login.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<nav>
+<div class="logo">
+<img src="images/logo.png" alt="SwapMyBook Logo">
+<h2 class="logotext">SwapMyBook</h2>
+</div>
+
+<ul>
+<li><a href="login_page.html" onclick="requireLoginFirst(); return false;">Home</a></li>
+<li><a href="login_page.html" onclick="requireLoginFirst(); return false;">Browse Books</a></li>
+<li><a href="admin_login.html">Admin</a></li>
+</ul>
+</nav>
+
+<div class="main">
+<div class="container">
+<div class="title">Admin Login</div>
+
+<form action="admin_login.php" method="POST">
+<label>Username</label>
+<input type="text" name="username" placeholder="Enter admin username" required>
+
+<label>Password</label>
+<input type="password" name="password" placeholder="Enter password" required>
+
+<button type="submit">Login</button>
+</form>
+
+
+</div>
+</div>
+
+<script>
+function requireLoginFirst(){
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+}
+
+function clearStaleAuth(){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(!data.loggedIn){
+localStorage.removeItem("username");
+}
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+document.addEventListener("DOMContentLoaded", clearStaleAuth);
+</script>
+</body>
+</html>

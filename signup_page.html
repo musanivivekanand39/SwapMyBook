@@ -1,0 +1,65 @@
+<html>
+<head>
+	<title>SwapMyBook - Sign Up</title>
+	<link href="signup_page.css?v=2" type="text/css" rel="stylesheet"/>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style='background:#f5f5f5; background-image:linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url("images/background.jpg"); background-size:cover; background-position:center; background-repeat:no-repeat;'>
+
+	<nav>
+		<div class="logo">
+			<img src="images/logo.png" alt="BookSwap Logo">
+			<h2 class="logotext">SwapMyBook</h2>
+		</div>
+
+		<ul>
+			<li><a href="index.html">Home</a></li>
+			<li><a href="index.html#subjects">Browse Books</a></li>
+			<li><a href="login_page.html">Login</a></li>
+			<li><a href="signup_page.html">Register</a></li>
+		</ul>
+	</nav>
+	<div class="main">
+		<div class="container">
+		<div class="title">Create Account</div>
+			<form action="signup.php" method="POST">
+
+			<label>Name</label>
+			<input type="text" name="name" placeholder="Enter your name">
+
+			<label>Email</label>
+			<input type="email" name="email" placeholder="Enter your email">
+
+			<label>Password</label>
+			<input type="password" name="password" placeholder="Create password">
+
+			<label>Confirm Password</label>
+			<input type="password" name="confirm_password" placeholder="Confirm password">
+
+			<button type="submit">Sign Up</button>
+
+			</form>
+			<div class="login">
+			Already have an account? <a href="login_page.html">Login</a>
+			</div>
+		</div>
+	</div>
+	<script>
+		function clearStaleAuth(){
+		fetch("auth_status.php", { cache: "no-store" })
+		.then(res => res.json())
+		.then(data => {
+		if(!data.loggedIn){
+		localStorage.removeItem("username");
+		}
+		})
+		.catch(function(){
+		localStorage.removeItem("username");
+		});
+		}
+
+		document.addEventListener("DOMContentLoaded", clearStaleAuth);
+	</script>
+</body>
+</html>

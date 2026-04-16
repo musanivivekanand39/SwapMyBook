@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SwapMyBook - Handwritten Notes</title>
+<link href="index.css" rel="stylesheet">
+<link href="notes.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+
+<header>
+
+<div class="logo">
+<img src="images/logo.png">
+<h2 class="logotext">SwapMyBook</h2>
+</div>
+
+<nav>
+<ul>
+<li><a href="index.html">HOME</a></li>
+<li><a href="index.html#aboutus">ABOUT</a></li>
+<li class="nav-dropdown" id="serviceNavItem">
+<button type="button" class="nav-dropdown-toggle" onclick="toggleServiceDropdown(event)" aria-haspopup="true">SERVICE</button>
+<div class="nav-dropdown-menu">
+<button type="button" class="nav-dropdown-item" onclick="scrollToBooks(); closeServiceDropdown();">Books</button>
+<button type="button" class="nav-dropdown-item" onclick="openHandwrittenNotes()">Handwritten Notes</button>
+</div>
+</li>
+</ul>
+</nav>
+
+<button class="contact-btn" type="button" onclick="window.location.href='index.html#contact'">CONTACT US</button>
+
+<div id="profileBox" class="profile-menu">
+<button type="button" class="profile-trigger" onclick="toggleProfilePopup(event)">
+<div id="profileCircle"><span id="profileInitial">U</span><span id="profileNotifyCount" class="profile-notify-count">0</span></div>
+<span id="profileTriggerLabel" class="profile-trigger-label">Profile</span>
+</button>
+</div>
+</header>
+
+<div id="profilePopup" class="profile-popup" onclick="closeProfilePopup()">
+<div class="profile-card" onclick="event.stopPropagation()">
+<div class="profile-popup-top">
+<div id="profilePopupAvatar" class="profile-popup-avatar">U</div>
+<div id="profilePopupName" class="profile-popup-name">User</div>
+<div id="profilePopupEmail" class="profile-popup-email">No email available</div>
+</div>
+
+<div class="profile-popup-meta">
+<div class="profile-stat">
+<strong id="profileBooksCount">0</strong>
+<span>Books</span>
+</div>
+<div class="profile-stat">
+<strong id="profileSentCount">0</strong>
+<span>Sent</span>
+</div>
+<div class="profile-stat">
+<strong id="profileReceivedCount">0</strong>
+<span>Received</span>
+</div>
+</div>
+
+<div class="profile-popup-actions">
+<a href="my_requests.html" class="profile-action-btn secondary">My Requests</a>
+<a href="login_page.html" onclick="logout(); return false;" class="profile-action-btn primary">Logout</a>
+</div>
+</div>
+</div>
+
+<section class="notes-hero">
+<a class="notes-back-btn" href="index.html#subjects" onclick="if(history.length > 1){history.back();return false;}">&#8592;</a>
+<h1>Handwritten Notes</h1>
+</section>
+
+<div class="book-container" id="notesContainer"></div>
+
+<script>
+let notificationRefreshTimer = null;
+
+function scrollToBooks(){
+window.location.href = "index.html#subjects";
+}
+
+function openHandwrittenNotes(){
+window.location.href = "notes.html";
+}
+
+function loadNotes(){
+fetch("notes.php")
+.then(res => res.json())
+.then(data => {
+let container = document.getElementById("notesContainer");
+container.innerHTML = "";
+
+data.forEach(note => {
+container.innerHTML += `
+<div class="book-card">
+<div class="note-icon">PDF</div>
+<h3>${note.title}</h3>
+<p>Subject: ${note.subject}</p>
+<p>Uploader: ${note.uploader_name}</p>
+<a href="${note.file_path}" download class="download-btn">Download</a>
+</div>
+`;
+});
+
+if(data.length === 0){
+container.innerHTML = "<p class='no-notes-message'>No approved notes available yet.</p>";
+}
+})
+.catch(function(){
+document.getElementById("notesContainer").innerHTML = "<p class='no-notes-message'>Could not load notes right now.</p>";
+});
+}
+
+function loadNotifications(){
+fetch("get_notifications.php?ts=" + Date.now(), { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+let profileBadge = document.getElementById("profileNotifyCount");
+let count = Number(data.count);
+
+if(!Number.isFinite(count) || count < 0){
+count = 0;
+}
+
+if(profileBadge){
+profileBadge.innerText = String(count);
+profileBadge.style.display = count > 0 ? "inline-flex" : "none";
+}
+})
+.catch(function(){
+let profileBadge = document.getElementById("profileNotifyCount");
+if(profileBadge){
+profileBadge.innerText = "0";
+profileBadge.style.display = "none";
+}
+});
+}
+
+function logout(){
+window.location.href="logout.php";
+}
+
+function toggleProfilePopup(event){
+event.stopPropagation();
+let popup = document.getElementById("profilePopup");
+
+if(!popup){
+return;
+}
+
+popup.style.display = popup.style.display === "flex" ? "none" : "flex";
+}
+
+function toggleServiceDropdown(event){
+event.preventDefault();
+event.stopPropagation();
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(!serviceItem){
+return;
+}
+
+serviceItem.classList.toggle("open");
+}
+
+function closeServiceDropdown(){
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(serviceItem){
+serviceItem.classList.remove("open");
+}
+}
+
+function closeProfilePopup(){
+let popup = document.getElementById("profilePopup");
+
+if(popup){
+popup.style.display = "none";
+}
+}
+
+function renderProfilePopup(profile){
+let user = profile.name || "User";
+let initial = profile.initial || user.charAt(0).toUpperCase();
+let rawEmail = profile.email || "";
+let email = rawEmail || "No email available";
+let isGuestUser = user === "User" && rawEmail === "" && !(profile.booksCount || profile.sentCount || profile.receivedCount);
+
+let profileInitial = document.getElementById("profileInitial");
+if(profileInitial){
+profileInitial.innerText = initial;
+}
+document.getElementById("profileTriggerLabel").innerText = user;
+document.getElementById("profilePopupAvatar").innerText = initial;
+document.getElementById("profilePopupName").innerText = user;
+document.getElementById("profilePopupEmail").innerText = email;
+document.getElementById("profileBooksCount").innerText = profile.booksCount ?? 0;
+document.getElementById("profileSentCount").innerText = profile.sentCount ?? 0;
+document.getElementById("profileReceivedCount").innerText = profile.receivedCount ?? 0;
+
+let primaryAction = document.querySelector(".profile-popup-actions .profile-action-btn.primary");
+if(primaryAction){
+if(isGuestUser){
+primaryAction.innerText = "Login";
+primaryAction.href = "login_page.html";
+primaryAction.removeAttribute("onclick");
+} else {
+primaryAction.innerText = "Logout";
+primaryAction.href = "login_page.html";
+primaryAction.setAttribute("onclick", "logout(); return false;");
+}
+}
+}
+
+function loadProfilePopup(){
+fetch("get_profile.php")
+.then(res => res.json())
+.then(data => {
+if(data.success){
+localStorage.setItem("username", data.name || "");
+renderProfilePopup(data);
+return;
+}
+
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+})
+.catch(function(){
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+});
+}
+
+function syncAuthState(){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+localStorage.setItem("username", data.username || "");
+return;
+}
+
+localStorage.removeItem("username");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+function requireLoginNavigation(target){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+window.location.href = target;
+return;
+}
+
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+loadNotes();
+syncAuthState();
+loadNotifications();
+loadProfilePopup();
+
+if(notificationRefreshTimer){
+clearInterval(notificationRefreshTimer);
+}
+notificationRefreshTimer = setInterval(loadNotifications, 15000);
+
+window.addEventListener("focus", loadNotifications);
+window.addEventListener("pageshow", function(){
+syncAuthState().finally(function(){
+loadProfilePopup();
+loadNotifications();
+});
+});
+
+document.addEventListener("visibilitychange", function(){
+if(!document.hidden){
+loadNotifications();
+}
+});
+
+document.addEventListener("click", function(event){
+let profileBox = document.getElementById("profileBox");
+let profilePopup = document.getElementById("profilePopup");
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(profileBox && !profileBox.contains(event.target) && profilePopup && !profilePopup.contains(event.target)){
+closeProfilePopup();
+}
+
+if(serviceItem && !serviceItem.contains(event.target)){
+closeServiceDropdown();
+}
+});
+
+document.addEventListener("keydown", function(event){
+if(event.key === "Escape"){
+closeProfilePopup();
+closeServiceDropdown();
+}
+});
+});
+</script>
+
+</body>
+</html>

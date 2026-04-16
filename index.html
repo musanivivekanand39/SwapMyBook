@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>BookSwap</title>
+<link rel="stylesheet" href="index.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+
+<script>
+
+let successMsgTimer = null;
+let notificationRefreshTimer = null;
+
+function openPopup(){
+document.getElementById("bookPopup").style.display="flex";
+}
+
+function openNotesPopup(){
+document.getElementById("notesPopup").style.display="flex";
+setNoteUploader();
+}
+
+function closePopup(){
+document.getElementById("bookPopup").style.display="none";
+hideSuccessMessage();
+}
+
+function closeNotesPopup(){
+document.getElementById("notesPopup").style.display="none";
+hideNoteSuccessMessage();
+hideNoteErrorMessage();
+}
+
+function scrollToBooks(){
+document.getElementById("subjects").scrollIntoView({
+behavior:"smooth"
+});
+}
+
+function scrollToServices(){
+let services = document.getElementById("services");
+if(services){
+services.scrollIntoView({ behavior: "smooth" });
+}
+}
+
+function openHandwrittenNotes(){
+window.location.href = "notes.html";
+}
+
+function scrollToAbout(){
+let about = document.getElementById("aboutus");
+if(about){
+about.scrollIntoView({ behavior: "smooth" });
+}
+}
+
+function scrollToContact(){
+let contact = document.getElementById("contact");
+if(contact){
+contact.scrollIntoView({ behavior: "smooth" });
+}
+}
+
+function openBooks(subject){
+window.location.href = "books.html?subject=" + subject;
+}
+
+function loadBookCount(subject, elementId){
+fetch("get_book_count.php?subject=" + encodeURIComponent(subject))
+.then(res => res.text())
+.then(data => {
+document.getElementById(elementId).innerText = data;
+});
+}
+
+function loadAllBookCounts(){
+loadBookCount("engineering", "engCount");
+loadBookCount("mba", "mbaCount");
+loadBookCount("pharmacy", "pharmaCount");
+loadBookCount("law", "lawCount");
+loadBookCount("commerce", "commerceCount");
+}
+
+function loadNotifications(){
+fetch("get_notifications.php?ts=" + Date.now(), { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+let profileBadge = document.getElementById("profileNotifyCount");
+let count = Number(data.count);
+
+if(!Number.isFinite(count) || count < 0){
+count = 0;
+}
+
+if(profileBadge){
+profileBadge.innerText = String(count);
+profileBadge.style.display = count > 0 ? "inline-flex" : "none";
+}
+})
+.catch(function(){
+let profileBadge = document.getElementById("profileNotifyCount");
+if(profileBadge){
+profileBadge.innerText = "0";
+profileBadge.style.display = "none";
+}
+});
+}
+
+function logout(){
+window.location.href="logout.php";
+}
+
+function toggleProfilePopup(event){
+event.stopPropagation();
+let popup = document.getElementById("profilePopup");
+
+if(!popup){
+return;
+}
+
+popup.style.display = popup.style.display === "flex" ? "none" : "flex";
+}
+
+function toggleServiceDropdown(event){
+event.preventDefault();
+event.stopPropagation();
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(!serviceItem){
+return;
+}
+
+serviceItem.classList.toggle("open");
+}
+
+function closeServiceDropdown(){
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(serviceItem){
+serviceItem.classList.remove("open");
+}
+}
+
+function closeProfilePopup(){
+let popup = document.getElementById("profilePopup");
+
+if(popup){
+popup.style.display = "none";
+}
+}
+
+function renderProfilePopup(profile){
+let user = profile.name || "User";
+let initial = profile.initial || user.charAt(0).toUpperCase();
+let rawEmail = profile.email || "";
+let email = rawEmail || "No email available";
+let isGuestUser = user === "User" && rawEmail === "" && !(profile.booksCount || profile.sentCount || profile.receivedCount);
+
+let profileInitial = document.getElementById("profileInitial");
+if(profileInitial){
+profileInitial.innerText = initial;
+}
+document.getElementById("profileTriggerLabel").innerText = user;
+document.getElementById("profilePopupAvatar").innerText = initial;
+document.getElementById("profilePopupName").innerText = user;
+document.getElementById("profilePopupEmail").innerText = email;
+document.getElementById("profileBooksCount").innerText = profile.booksCount ?? 0;
+document.getElementById("profileSentCount").innerText = profile.sentCount ?? 0;
+document.getElementById("profileReceivedCount").innerText = profile.receivedCount ?? 0;
+
+let primaryAction = document.querySelector(".profile-popup-actions .profile-action-btn.primary");
+if(primaryAction){
+if(isGuestUser){
+primaryAction.innerText = "Login";
+primaryAction.href = "login_page.html";
+primaryAction.removeAttribute("onclick");
+} else {
+primaryAction.innerText = "Logout";
+primaryAction.href = "login_page.html";
+primaryAction.setAttribute("onclick", "logout(); return false;");
+}
+}
+}
+
+function loadProfilePopup(){
+fetch("get_profile.php")
+.then(res => res.json())
+.then(data => {
+if(data.success){
+localStorage.setItem("username", data.name || "");
+renderProfilePopup(data);
+return;
+}
+
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+})
+.catch(function(){
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+});
+}
+
+function syncAuthState(){
+return fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+localStorage.setItem("username", data.username || "");
+return;
+}
+
+localStorage.removeItem("username");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+function refreshAuthUi(){
+syncAuthState()
+.finally(function(){
+loadProfilePopup();
+loadNotifications();
+setNoteUploader();
+});
+}
+
+function requireLoginNavigation(target){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+window.location.href = target;
+return;
+}
+
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+function requireLoginToOpenPopup(){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+openPopup();
+return;
+}
+
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+function requireLoginToOpenNotesPopup(){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+openNotesPopup();
+return;
+}
+
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+function hideSuccessMessage(){
+let successMsg = document.getElementById("successMsg");
+
+if(successMsg){
+successMsg.style.display="none";
+}
+
+clearTimeout(successMsgTimer);
+}
+
+function hideNoteSuccessMessage(){
+let successMsg = document.getElementById("noteSuccessMsg");
+
+if(successMsg){
+successMsg.style.display="none";
+}
+}
+
+function hideNoteErrorMessage(){
+let errorMsg = document.getElementById("noteErrorMsg");
+
+if(errorMsg){
+errorMsg.style.display="none";
+errorMsg.innerText = "";
+}
+}
+
+function showSuccessMessage(){
+let successMsg = document.getElementById("successMsg");
+let bookPopup = document.getElementById("bookPopup");
+
+if(!successMsg){
+return;
+}
+
+successMsg.style.display="block";
+clearTimeout(successMsgTimer);
+successMsgTimer = setTimeout(function(){
+successMsg.style.display="none";
+if(bookPopup){
+bookPopup.style.display="none";
+}
+}, 2500);
+}
+
+function showNoteSuccessMessage(){
+let successMsg = document.getElementById("noteSuccessMsg");
+let notesPopup = document.getElementById("notesPopup");
+
+if(!successMsg){
+return;
+}
+
+successMsg.style.display="block";
+clearTimeout(successMsgTimer);
+successMsgTimer = setTimeout(function(){
+successMsg.style.display="none";
+if(notesPopup){
+notesPopup.style.display="none";
+}
+}, 2500);
+}
+
+function setNoteUploader(){
+let uploaderField = document.getElementById("noteUploaderName");
+let user = localStorage.getItem("username") || "";
+
+if(uploaderField){
+uploaderField.value = user;
+}
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+
+let form = document.querySelector("#bookPopup form");
+let noteForm = document.querySelector("#notesPopup form");
+let params = new URLSearchParams(window.location.search);
+
+if(form){
+form.addEventListener("submit", function(){
+hideSuccessMessage();
+});
+}
+
+if(noteForm){
+let noteFileInput = noteForm.querySelector('input[name="pdf_file"]');
+
+setNoteUploader();
+
+noteForm.addEventListener("submit", function(event){
+hideNoteSuccessMessage();
+hideNoteErrorMessage();
+setNoteUploader();
+
+if(noteFileInput && noteFileInput.files.length > 0){
+let file = noteFileInput.files[0];
+let fileName = file.name.toLowerCase();
+let isPdf = file.type === "application/pdf" || fileName.endsWith(".pdf");
+
+if(!isPdf){
+event.preventDefault();
+let errorMsg = document.getElementById("noteErrorMsg");
+errorMsg.innerText = "Only PDF files are allowed.";
+errorMsg.style.display = "block";
+}
+}
+});
+}
+
+loadAllBookCounts();
+refreshAuthUi();
+
+if(notificationRefreshTimer){
+clearInterval(notificationRefreshTimer);
+}
+notificationRefreshTimer = setInterval(loadNotifications, 15000);
+
+if(params.get("book_added") === "1"){
+openPopup();
+
+showSuccessMessage();
+
+loadAllBookCounts();
+history.replaceState({}, "", "index.html");
+}
+
+if(params.get("note_added") === "1"){
+openNotesPopup();
+showNoteSuccessMessage();
+history.replaceState({}, "", "index.html");
+}
+
+if(params.get("note_error")){
+openNotesPopup();
+let errorMsg = document.getElementById("noteErrorMsg");
+errorMsg.innerText = params.get("note_error");
+errorMsg.style.display = "block";
+history.replaceState({}, "", "index.html");
+}
+
+document.addEventListener("click", function(event){
+let profileBox = document.getElementById("profileBox");
+let profilePopup = document.getElementById("profilePopup");
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(profileBox && !profileBox.contains(event.target) && profilePopup && !profilePopup.contains(event.target)){
+closeProfilePopup();
+}
+
+if(serviceItem && !serviceItem.contains(event.target)){
+closeServiceDropdown();
+}
+});
+
+document.addEventListener("keydown", function(event){
+if(event.key === "Escape"){
+closeProfilePopup();
+closeServiceDropdown();
+}
+});
+
+document.addEventListener("visibilitychange", function(){
+if(!document.hidden){
+loadNotifications();
+}
+});
+
+window.addEventListener("focus", loadNotifications);
+window.addEventListener("pageshow", refreshAuthUi);
+
+});
+
+</script>
+
+<header>
+
+<div class="logo">
+<img src="images/logo.png" alt="BookSwap Logo">
+<h2 class="logotext">SwapMyBook</h2>
+</div>
+
+<nav>
+<ul>
+<li><a href="index.html">HOME</a></li>
+<li><a href="#aboutus">ABOUT</a></li>
+<li class="nav-dropdown" id="serviceNavItem">
+<button type="button" class="nav-dropdown-toggle" onclick="toggleServiceDropdown(event)" aria-haspopup="true">SERVICE</button>
+<div class="nav-dropdown-menu">
+<button type="button" class="nav-dropdown-item" onclick="scrollToBooks(); closeServiceDropdown();">Books</button>
+<button type="button" class="nav-dropdown-item" onclick="openHandwrittenNotes()">Handwritten Notes</button>
+</div>
+</li>
+
+</ul>
+</nav>
+
+<button class="contact-btn" type="button" onclick="scrollToContact()">CONTACT US</button>
+
+<div id="profileBox" class="profile-menu">
+<button type="button" class="profile-trigger" onclick="toggleProfilePopup(event)">
+<div id="profileCircle"><span id="profileInitial">U</span><span id="profileNotifyCount" class="profile-notify-count">0</span></div>
+<span id="profileTriggerLabel" class="profile-trigger-label">Profile</span>
+</button>
+</div>
+</header>
+
+<div id="profilePopup" class="profile-popup" onclick="closeProfilePopup()">
+<div class="profile-card" onclick="event.stopPropagation()">
+<div class="profile-popup-top">
+<div id="profilePopupAvatar" class="profile-popup-avatar">U</div>
+<div id="profilePopupName" class="profile-popup-name">User</div>
+<div id="profilePopupEmail" class="profile-popup-email">No email available</div>
+</div>
+
+<div class="profile-popup-meta">
+<div class="profile-stat">
+<strong id="profileBooksCount">0</strong>
+<span>Books</span>
+</div>
+<div class="profile-stat">
+<strong id="profileSentCount">0</strong>
+<span>Sent</span>
+</div>
+<div class="profile-stat">
+<strong id="profileReceivedCount">0</strong>
+<span>Received</span>
+</div>
+</div>
+
+<div class="profile-popup-actions">
+<a href="my_requests.html" class="profile-action-btn secondary">My Requests</a>
+<a href="login_page.html" onclick="logout(); return false;" class="profile-action-btn primary">Logout</a>
+</div>
+</div>
+</div>
+
+
+<section class="hero">
+
+<div class="left">
+
+<h1>
+Empowering Students Through Shared Knowledge and Books
+</h1>
+
+<p>
+Join our community to exchange academic resources directly with peers,
+reducing costs while fostering a sustainable and collaborative learning
+environment for everyone.
+</p>
+
+<div class="buttons">
+<button class="start" onclick="window.location.href='index.html#subjects'">Start Swapping</button>
+<button class="add" onclick="requireLoginToOpenPopup()">Add Book</button>
+<button class="add" onclick="requireLoginToOpenNotesPopup()">Add Notes</button>
+</div>
+
+</div>
+
+
+<div class="right">
+<img src="book_home.webp" >
+</div>
+
+<!-- Add Book Popup -->
+<div id="bookPopup" class="popup">
+
+<div class="popup-content">
+
+<span class="close-btn" onclick="closePopup()">x</span>
+
+<h2>Add a Book</h2>
+
+<form action="add_book.php" method="POST" enctype="multipart/form-data">
+
+<div class="input-group">
+<input type="text" name="title" required>
+<label>Book Title</label>
+</div>
+
+<div class="input-group">
+<input type="text" name="author" required>
+<label>Author Name</label>
+</div>
+
+<div class="input-group">
+<input type="text" name="contact" required>
+<label>Contact Number</label>
+</div>
+
+<div class="input-group">
+<select name="subject_id" required>
+<option value="">Select Subject</option>
+<option value="engineering">Engineering</option>
+<option value="mba">MBA</option>
+<option value="pharmacy">Pharmacy</option>
+<option value="law">Law</option>
+<option value="commerce">Commerce</option>
+</select>
+</div>
+
+<div class="input-group">
+<input type="file" name="image" required>
+</div>
+
+<button type="submit" class="submit-btn">Submit</button>
+
+</form>
+
+<div id="successMsg">Book Added Successfully</div>
+
+</div>
+
+</div>
+
+<!-- Add Notes Popup -->
+<div id="notesPopup" class="popup">
+
+<div class="popup-content">
+
+<span class="close-btn" onclick="closeNotesPopup()">x</span>
+
+<h2>Add Notes</h2>
+
+<form action="add_note.php" method="POST" enctype="multipart/form-data">
+
+<div class="input-group">
+<input type="text" name="title" required>
+<label>Notes Title</label>
+</div>
+
+<div class="input-group">
+<select name="subject" required>
+<option value="">Select Subject</option>
+<option value="engineering">Engineering</option>
+<option value="mba">MBA</option>
+<option value="pharmacy">Pharmacy</option>
+<option value="law">Law</option>
+<option value="commerce">Commerce</option>
+</select>
+</div>
+
+<div class="input-group">
+<input type="text" id="noteUploaderName" name="uploader_name" readonly required>
+<label>Uploader Name</label>
+</div>
+
+<div class="input-group">
+<input type="file" name="pdf_file" accept="application/pdf,.pdf" required>
+</div>
+
+<button type="submit" class="submit-btn">Submit</button>
+
+</form>
+
+<div id="noteSuccessMsg">Notes uploaded successfully and sent for approval</div>
+<div id="noteErrorMsg"></div>
+
+</div>
+
+</div>
+
+</section>
+
+<section class="features">
+
+<div class="features-left">
+
+<span class="tag">Unique Exchange</span>
+
+<h2>Our Core Features</h2>
+
+<p>
+Experience a seamless way to share educational materials with fellow students,
+ensuring that valuable resources never go to waste in our community.
+</p>
+
+<p>
+Our platform simplifies the process of finding required textbooks by connecting
+you directly with local student owners for fast and affordable exchanges.
+</p>
+
+<button class="explore-btn" type="button" onclick="window.location.href='explore_more.html'">Explore Now</button>
+
+</div>
+
+<div class="features-right">
+
+<div class="card">
+<img src="images/boy.png">
+<h3>Easy Listing</h3>
+<p>List your academic books easily and connect with students who need them in your area.</p>
+<a href="read_more.html?feature=easy-listing">Read more</a>
+</div>
+
+<div class="card">
+<img src="images/world.png">
+<h3>Smart Search</h3>
+<p>Browse categorized academic subjects to find textbooks required for your semester.</p>
+<a href="read_more.html?feature=smart-search">Read more</a>
+</div>
+
+<div class="card">
+<img src="images/clipboard.png">
+<h3>Direct Contact</h3>
+<p>Communicate directly with book owners to arrange safe and convenient pickups.</p>
+<a href="read_more.html?feature=direct-contact">Read more</a>
+</div>
+
+<div class="card">
+<img src="images/cost_saving.png">
+<h3>Cost Savings</h3>
+<p>Save money by swapping books instead of purchasing expensive new editions.</p>
+<a href="read_more.html?feature=cost-savings">Read more</a>
+</div>
+
+</div>
+
+</section>
+
+<section class="services" id="services">
+
+<div class="services-left">
+<img src="images/winning.jpg" alt="Peer Exchange">
+</div>
+
+<div class="services-right">
+
+<span class="service-tag">Academic Support</span>
+
+<h2>Comprehensive Peer to <br> Peer Exchange Services</h2>
+
+<p>
+Our platform facilitates secure connections between students, offering a
+verified environment for exchanging textbooks and sharing essential academic
+resources within your university.
+</p>
+
+<p>
+We provide the infrastructure for students to list, find, and trade books
+across various disciplines including engineering, law, commerce, and
+management studies.
+</p>
+
+<button class="service-btn" type="button" onclick="scrollToBooks()">View Services</button>
+
+</div>
+
+</section>
+
+<section class="subjects" id="subjects">
+
+<h5 class="subject-tag">Subject Categories</h5><br>
+<h2>Browse By Subject</h2>
+
+<p class="subject-desc">
+Select your specific field of study to see available textbooks from peers.
+We cover major disciplines to ensure every student finds their needs.
+</p>
+
+<div class="subject-container">
+
+<div class="subject-card">
+<img src="images/engi_book.jpg">
+<div class="subject-info">
+<p><span id="engCount">0</span> books</p>
+<span>25 oct 2024</span>
+<span class="price">$0</span>
+</div>
+
+<h3>Engineering Books</h3>
+
+<p>Access a wide range of technical manuals and textbooks shared by senior engineering students today.</p>
+
+<button onclick="window.location.href='books.html?subject=engineering'">View Books</button>
+</div>
+
+<div class="subject-card">
+<img src="images/mba_book.jpg">
+<div class="subject-info">
+<p><span id="mbaCount">0</span> books</p>
+<span>25 oct 2024</span>
+<span class="price">$0</span>
+</div>
+
+<h3>MBA Textbooks</h3>
+
+<p>Get the latest management and business strategy books from peers who have completed their modules.</p>
+
+<button onclick="window.location.href='books.html?subject=mba'">View Books</button>
+</div>
+
+<div class="subject-card">
+<img src="images/pharmacy_book.jpg">
+<div class="subject-info">
+<p><span id="pharmaCount">0</span> books</p>
+<span>25 oct 2024</span>
+<span class="price">$0</span>
+</div>
+
+<h3>Pharmacy Books</h3>
+
+<p>Find essential medical and pharmaceutical texts from fellow students at a fraction of the cost.</p>
+
+<button onclick="window.location.href='books.html?subject=pharmacy'">View Books</button>
+</div>
+
+<div class="subject-card">
+<img src="images/law_book.jpg">
+<div class="subject-info">
+<p><span id="lawCount">0</span> books</p>
+<span>25 oct 2024</span>
+<span class="price">$0</span>
+</div>
+
+<h3>Law Books</h3>
+
+<p>Access legal textbooks and reference materials shared by law students and professionals.</p>
+
+<button onclick="window.location.href='books.html?subject=law'">View Books</button>
+</div>
+
+<div class="subject-card">
+<img src="images/commers_book.jpg">
+<div class="subject-info">
+<p><span id="commerceCount">0</span> books</p>
+<span>25 oct 2024</span>
+<span class="price">$0</span>
+</div>
+
+<h3>Commerce Books</h3>
+
+<p>Explore accounting, finance, and economics books shared by commerce students.</p>
+
+<button onclick="window.location.href='books.html?subject=commerce'">View Books</button>
+</div>
+
+</div>
+
+</section>
+
+<footer class="footer" id="aboutus">
+
+<div class="footer-container">
+
+<div class="footer-col logo-col">
+<div class="lower_logo">
+	<img src="images/logo.png" width="38px">
+	<h2 class="footer-logo">SwapMyBook</h2>
+</div><br>
+<p>
+Empowering students through a modern peer-to-peer exchange platform
+designed for seamless book sharing across engineering, law,
+commerce, and diverse academic disciplines.
+</p>
+</div>
+
+<div class="footer-col">
+<h3>QUICK LINKS</h3>
+<br>
+<ul>
+<li><a href="#aboutus">ABOUT</a></li>
+<li><a href="#services">SERVICE</a></li>
+<li><a href="#contact">CONTACT</a></li>
+</ul>
+</div>
+
+<div class="footer-col" id="contact">
+
+<h3>CONTACT</h3>
+
+<p class="contact-item">
+<img src="images/gps.png" class="icons">
+123 Academic Plaza, Education Hub, City Center
+</p>
+
+<p class="contact-item">
+<img src="images/apple.png" class="icons">
++91-1234567890 <br>
++91-1234512345
+</p>
+
+<p class="contact-item">
+<img src="images/email.png" class="icons">
+contact@p2pbooks.com <br>
+support@p2pbooks.com
+</p>
+
+<div class="social">
+
+<img src="images/facebook.png" class="social-icon">
+<img src="images/instagram.png" class="social-icon">
+<img src="images/youtube.png" class="social-icon">
+<img src="images/linkedin.png" class="social-icon">
+
+</div>
+
+</div>
+
+</div>
+
+<hr>
+
+<p class="copyright">
+&copy;2026 . All Rights Reserved.
+</p>
+
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SwapMyBook - Admin Notes</title>
+<link href="admin_notes.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<div class="page-box">
+<div class="page-top">
+<div>
+<h1>Handwritten Notes Admin</h1>
+<p>Approve or reject uploaded notes. Only approved notes appear on the website.</p>
+</div>
+<div class="page-actions">
+<a class="top-link" href="index.html">Back to Home</a>
+<a class="logout-link" href="admin_logout.php">Logout</a>
+</div>
+</div>
+
+<div id="adminMessage" class="admin-message">Loading notes...</div>
+
+<div class="table-wrap" id="tableWrap" style="display:none;">
+<table>
+<thead>
+<tr>
+<th>Title</th>
+<th>Subject</th>
+<th>Uploader</th>
+<th>PDF</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="notesTableBody"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+function escapeHtml(value){
+return String(value ?? "")
+.replace(/&/g, "&amp;")
+.replace(/</g, "&lt;")
+.replace(/>/g, "&gt;")
+.replace(/"/g, "&quot;")
+.replace(/'/g, "&#39;");
+}
+
+function getActionMarkup(note){
+let noteId = Number(note.note_id);
+
+if(note.status === "approved"){
+return `<div class="actions"></div>`;
+}
+
+if(note.status === "rejected"){
+return `
+<div class="actions">
+<form action="delete_note.php" method="POST" onsubmit="return confirm('Delete this rejected note?');">
+<input type="hidden" name="note_id" value="${noteId}">
+<button type="submit" class="btn reject-btn">Delete</button>
+</form>
+</div>
+`;
+}
+
+return `
+<div class="actions">
+<form action="update_note_status.php" method="POST">
+<input type="hidden" name="note_id" value="${noteId}">
+<input type="hidden" name="status" value="approved">
+<button type="submit" class="btn approve-btn">Approve</button>
+</form>
+<form action="update_note_status.php" method="POST">
+<input type="hidden" name="note_id" value="${noteId}">
+<input type="hidden" name="status" value="rejected">
+<button type="submit" class="btn reject-btn">Reject</button>
+</form>
+</div>
+`;
+}
+
+function loadAdminNotes(){
+fetch("admin_notes.php", { cache: "no-store" })
+.then(async function(res){
+let data = await res.json();
+
+if(res.status === 401){
+window.location.href = "admin_login.html";
+return;
+}
+
+let message = document.getElementById("adminMessage");
+let tableWrap = document.getElementById("tableWrap");
+let tableBody = document.getElementById("notesTableBody");
+
+if(!data.success){
+message.innerText = data.message || "Could not load notes.";
+tableWrap.style.display = "none";
+return;
+}
+
+if(data.notes.length === 0){
+message.innerText = "No notes uploaded yet.";
+tableWrap.style.display = "none";
+return;
+}
+
+tableBody.innerHTML = "";
+
+data.notes.forEach(function(note){
+tableBody.innerHTML += `
+<tr>
+<td>${escapeHtml(note.title)}</td>
+<td>${escapeHtml(note.subject)}</td>
+<td>${escapeHtml(note.uploader_name)}</td>
+<td class="file-links">
+<a href="${escapeHtml(note.file_path)}" target="_blank">View</a>
+<a href="${escapeHtml(note.file_path)}" download>Download</a>
+</td>
+<td><span class="status ${escapeHtml(note.status)}">${escapeHtml(note.status)}</span></td>
+<td>${getActionMarkup(note)}</td>
+</tr>
+`;
+});
+
+message.style.display = "none";
+tableWrap.style.display = "block";
+})
+.catch(function(){
+document.getElementById("adminMessage").innerText = "Could not load notes.";
+document.getElementById("tableWrap").style.display = "none";
+});
+}
+
+document.addEventListener("DOMContentLoaded", loadAdminNotes);
+</script>
+
+</body>
+</html>

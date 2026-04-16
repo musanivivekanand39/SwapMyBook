@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>SwapMyBook - Books</title>
+<link href="index.css" rel="stylesheet">
+<link href="books.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+
+<header>
+
+<div class="logo">
+<img src="images/logo.png">
+<h2 class="logotext">SwapMyBook</h2>
+</div>
+
+<nav>
+<ul>
+<li><a href="index.html">HOME</a></li>
+<li><a href="index.html#aboutus">ABOUT</a></li>
+<li class="nav-dropdown" id="serviceNavItem">
+<button type="button" class="nav-dropdown-toggle" onclick="toggleServiceDropdown(event)" aria-haspopup="true">SERVICE</button>
+<div class="nav-dropdown-menu">
+<button type="button" class="nav-dropdown-item" onclick="scrollToBooks(); closeServiceDropdown();">Books</button>
+<button type="button" class="nav-dropdown-item" onclick="openHandwrittenNotes()">Handwritten Notes</button>
+</div>
+</li>
+</ul>
+</nav>
+
+<button class="contact-btn" type="button" onclick="window.location.href='index.html#contact'">CONTACT US</button>
+
+<div id="profileBox" class="profile-menu">
+<button type="button" class="profile-trigger" onclick="toggleProfilePopup(event)">
+<div id="profileCircle"><span id="profileInitial">U</span><span id="profileNotifyCount" class="profile-notify-count">0</span></div>
+<span id="profileTriggerLabel" class="profile-trigger-label">Profile</span>
+</button>
+</div>
+</header>
+
+<div id="profilePopup" class="profile-popup" onclick="closeProfilePopup()">
+<div class="profile-card" onclick="event.stopPropagation()">
+<div class="profile-popup-top">
+<div id="profilePopupAvatar" class="profile-popup-avatar">U</div>
+<div id="profilePopupName" class="profile-popup-name">User</div>
+<div id="profilePopupEmail" class="profile-popup-email">No email available</div>
+</div>
+
+<div class="profile-popup-meta">
+<div class="profile-stat">
+<strong id="profileBooksCount">0</strong>
+<span>Books</span>
+</div>
+<div class="profile-stat">
+<strong id="profileSentCount">0</strong>
+<span>Sent</span>
+</div>
+<div class="profile-stat">
+<strong id="profileReceivedCount">0</strong>
+<span>Received</span>
+</div>
+</div>
+
+<div class="profile-popup-actions">
+<a href="my_requests.html" class="profile-action-btn secondary">My Requests</a>
+<a href="login_page.html" onclick="logout(); return false;" class="profile-action-btn primary">Logout</a>
+</div>
+</div>
+</div>
+
+<section class="subject-hero">
+<a class="subject-back-btn" href="index.html#subjects" onclick="if(history.length > 1){history.back();return false;}" aria-label="Go back">&#8592;</a>
+<h1 id="subjectTitle">Books</h1>
+</section>
+
+<div class="book-container" id="bookContainer"></div>
+<div id="swapToast" class="swap-toast">Request successfully sent.</div>
+
+<script>
+
+const params = new URLSearchParams(window.location.search);
+const subject = params.get("subject");
+const subjectQuery = subject ? encodeURIComponent(subject) : "";
+const toast = document.getElementById("swapToast");
+let toastTimer = null;
+let notificationRefreshTimer = null;
+let currentUsername = localStorage.getItem("username") || "";
+
+function isLoggedIn(){
+return Boolean(currentUsername);
+}
+
+function formatSubjectLabel(rawSubject){
+if(!rawSubject){
+return "All Subjects";
+}
+
+let normalized = String(rawSubject).replace(/[-_]+/g, " ").trim();
+if(!normalized){
+return "All Subjects";
+}
+
+return normalized.replace(/\b\w/g, function(letter){
+return letter.toUpperCase();
+});
+}
+
+function renderSubjectTitle(){
+let titleElement = document.getElementById("subjectTitle");
+let label = subject ? formatSubjectLabel(subject) : "Browse";
+
+if(titleElement){
+titleElement.innerText = label + " Books";
+}
+
+document.title = "SwapMyBook - " + label + " Books";
+}
+
+function loadNotifications(){
+fetch("get_notifications.php?ts=" + Date.now(), { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+let profileBadge = document.getElementById("profileNotifyCount");
+let count = Number(data.count);
+
+if(!Number.isFinite(count) || count < 0){
+count = 0;
+}
+
+if(profileBadge){
+profileBadge.innerText = String(count);
+profileBadge.style.display = count > 0 ? "inline-flex" : "none";
+}
+})
+.catch(function(){
+let profileBadge = document.getElementById("profileNotifyCount");
+if(profileBadge){
+profileBadge.innerText = "0";
+profileBadge.style.display = "none";
+}
+});
+}
+
+function showToast(message, isError = false){
+toast.innerText = message;
+toast.style.background = isError ? "#c53030" : "#1f7a4d";
+toast.classList.add("show");
+clearTimeout(toastTimer);
+toastTimer = setTimeout(function(){
+toast.classList.remove("show");
+}, 2500);
+}
+
+function loadBooks(){
+if(!subjectQuery){
+document.getElementById("bookContainer").innerHTML = "<p class='no-books-message'>Choose a subject from the home page to view available books.</p>";
+return;
+}
+
+fetch("books.php?subject=" + subjectQuery)
+.then(res => res.json())
+.then(data => {
+
+let container = document.getElementById("bookContainer");
+
+container.innerHTML = "";
+
+data.forEach(book => {
+
+let coverImage = book.image ? `images/${book.image}` : "images/logo.png";
+let canDelete = Boolean(book.can_delete);
+let deleteButton = canDelete ? `
+<form action="delete_book.php" method="POST">
+<input type="hidden" name="book_id" value="${book.book_id}">
+<button type="submit" class="swap-btn">Delete</button>
+</form>
+` : "";
+
+container.innerHTML += `
+
+<div class="book-card">
+
+<img src="${coverImage}" alt="${book.title} cover">
+
+<h3>${book.title}</h3>
+
+<p>Author: ${book.author}</p>
+
+
+
+
+${isLoggedIn() ? `
+<form action="request_swap.php" method="POST">
+
+<input type="hidden" name="book_id" value="${book.book_id}">
+
+<button type="submit" class="swap-btn">Request Swap</button>
+
+</form>
+` : `
+<button type="button" class="swap-btn login-required-btn">Request Swap</button>
+`}
+
+${deleteButton}
+
+</div>
+
+`;
+
+});
+
+if(data.length === 0){
+container.innerHTML = "<p class='no-books-message'>No books available for this subject yet.</p>";
+}
+
+});
+}
+
+document.getElementById("bookContainer").addEventListener("submit", function(event){
+if(!event.target.matches("form")){
+return;
+}
+
+event.preventDefault();
+
+let form = event.target;
+let formData = new FormData(form);
+let action = form.getAttribute("action") || "";
+
+if(action === "delete_book.php"){
+event.preventDefault();
+
+fetch(action, {
+method: "POST",
+body: formData
+})
+.then(async function(res){
+let data = await res.json();
+
+if(!res.ok || !data.success){
+showToast(data.message || "Could not delete book.", true);
+return;
+}
+
+showToast(data.message || "Book deleted successfully.");
+loadBooks();
+loadProfilePopup();
+})
+.catch(function(){
+showToast("Could not delete book.", true);
+});
+return;
+}
+
+fetch(form.action, {
+method: "POST",
+body: formData
+})
+.then(async function(res){
+let data = await res.json();
+
+if(!res.ok || !data.success){
+showToast(data.message || "Could not send request.", true);
+loadNotifications();
+return;
+}
+
+showToast(data.message || "Request successfully sent.");
+loadNotifications();
+})
+.catch(function(){
+showToast("Could not send request.", true);
+loadNotifications();
+});
+});
+
+document.getElementById("bookContainer").addEventListener("click", function(event){
+if(!event.target.classList.contains("login-required-btn")){
+return;
+}
+
+alert("Please login first.");
+window.location.replace("login_page.html");
+});
+
+function logout(){
+window.location.href="logout.php";
+}
+
+function scrollToBooks(){
+window.location.href = "index.html#subjects";
+}
+
+function openHandwrittenNotes(){
+window.location.href = "notes.html";
+}
+
+function toggleProfilePopup(event){
+event.stopPropagation();
+let popup = document.getElementById("profilePopup");
+
+if(!popup){
+return;
+}
+
+popup.style.display = popup.style.display === "flex" ? "none" : "flex";
+}
+
+function toggleServiceDropdown(event){
+event.preventDefault();
+event.stopPropagation();
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(!serviceItem){
+return;
+}
+
+serviceItem.classList.toggle("open");
+}
+
+function closeServiceDropdown(){
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(serviceItem){
+serviceItem.classList.remove("open");
+}
+}
+
+function closeProfilePopup(){
+let popup = document.getElementById("profilePopup");
+
+if(popup){
+popup.style.display = "none";
+}
+}
+
+function renderProfilePopup(profile){
+let user = profile.name || "User";
+let initial = profile.initial || user.charAt(0).toUpperCase();
+let rawEmail = profile.email || "";
+let email = rawEmail || "No email available";
+let isGuestUser = user === "User" && rawEmail === "" && !(profile.booksCount || profile.sentCount || profile.receivedCount);
+
+let profileInitial = document.getElementById("profileInitial");
+if(profileInitial){
+profileInitial.innerText = initial;
+}
+document.getElementById("profileTriggerLabel").innerText = user;
+document.getElementById("profilePopupAvatar").innerText = initial;
+document.getElementById("profilePopupName").innerText = user;
+document.getElementById("profilePopupEmail").innerText = email;
+document.getElementById("profileBooksCount").innerText = profile.booksCount ?? 0;
+document.getElementById("profileSentCount").innerText = profile.sentCount ?? 0;
+document.getElementById("profileReceivedCount").innerText = profile.receivedCount ?? 0;
+
+let primaryAction = document.querySelector(".profile-popup-actions .profile-action-btn.primary");
+if(primaryAction){
+if(isGuestUser){
+primaryAction.innerText = "Login";
+primaryAction.href = "login_page.html";
+primaryAction.removeAttribute("onclick");
+} else {
+primaryAction.innerText = "Logout";
+primaryAction.href = "login_page.html";
+primaryAction.setAttribute("onclick", "logout(); return false;");
+}
+}
+}
+
+function loadProfilePopup(){
+fetch("get_profile.php")
+.then(res => res.json())
+.then(data => {
+if(data.success){
+let resolvedUsername = data.name || "";
+currentUsername = resolvedUsername;
+localStorage.setItem("username", resolvedUsername);
+renderProfilePopup(data);
+return;
+}
+
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+})
+.catch(function(){
+localStorage.removeItem("username");
+renderProfilePopup({ name: "User", initial: "U", email: "" });
+});
+}
+
+function syncAuthState(){
+return fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+currentUsername = data.username || "";
+localStorage.setItem("username", data.username || "");
+return;
+}
+
+currentUsername = "";
+localStorage.removeItem("username");
+})
+.catch(function(){
+currentUsername = "";
+localStorage.removeItem("username");
+});
+}
+
+function requireLoginNavigation(target){
+fetch("auth_status.php", { cache: "no-store" })
+.then(res => res.json())
+.then(data => {
+if(data.loggedIn){
+window.location.href = target;
+return;
+}
+
+localStorage.removeItem("username");
+alert("Please login first.");
+window.location.replace("login_page.html");
+})
+.catch(function(){
+localStorage.removeItem("username");
+});
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+
+renderSubjectTitle();
+syncAuthState().finally(loadBooks);
+loadNotifications();
+loadProfilePopup();
+
+if(notificationRefreshTimer){
+clearInterval(notificationRefreshTimer);
+}
+notificationRefreshTimer = setInterval(loadNotifications, 15000);
+
+window.addEventListener("focus", loadNotifications);
+window.addEventListener("pageshow", function(){
+syncAuthState().finally(function(){
+loadBooks();
+loadProfilePopup();
+loadNotifications();
+});
+});
+
+document.addEventListener("visibilitychange", function(){
+if(!document.hidden){
+loadNotifications();
+}
+});
+
+document.addEventListener("click", function(event){
+let profileBox = document.getElementById("profileBox");
+let profilePopup = document.getElementById("profilePopup");
+let serviceItem = document.getElementById("serviceNavItem");
+
+if(profileBox && !profileBox.contains(event.target) && profilePopup && !profilePopup.contains(event.target)){
+closeProfilePopup();
+}
+
+if(serviceItem && !serviceItem.contains(event.target)){
+closeServiceDropdown();
+}
+});
+
+document.addEventListener("keydown", function(event){
+if(event.key === "Escape"){
+closeProfilePopup();
+closeServiceDropdown();
+}
+});
+
+});
+
+</script>
+
+</body>
+</html>
